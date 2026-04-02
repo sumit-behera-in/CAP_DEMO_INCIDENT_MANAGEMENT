@@ -27,10 +27,13 @@ Explanation of each:
 cuidAdds a standard unique ID (UUID)
 Automatically generated
 Used for primary keys
-managedAutomatically adds audit fields: createdAt
+
+managed
+Automatically adds audit fields: createdAt
 createdBy
 modifiedAt
 modifiedBy
+
 CodeListUsed for fixed value lists
 Example: status, priority, urgency
 ✅ These save a lot of boilerplate work.
