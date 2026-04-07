@@ -71,4 +71,21 @@ describe('AdminService Tests', () => {
     expect(updated.data.firstName).toBe('Updated')
   })
 
+   /**
+   * ---------------------------------------------------------
+   * Test 5: Create Incident (Default Values)
+   * ---------------------------------------------------------
+   */
+  it('should create incident with defaults', async () => {
+    const res = await POST('/odata/v4/admin/Incidents', {
+      title: 'Server Down',
+      customer_ID: 'CUST1'
+    })
+
+    expect(res.status).toBe(201)
+    expect(res.data.status_code).toBe('N')   // default
+    expect(res.data.urgency_code).toBe('M') // default
+  })
+
+
 })
