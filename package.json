@@ -3,15 +3,21 @@
   "version": "1.0.0",
   "description": "A simple CAP project.",
   "dependencies": {
-    "@sap/cds": "^9",
     "express": "^4",
     "sqlite3": "^6.0.1"
   },
   "devDependencies": {
-    "@cap-js/sqlite": "^2"
+    "@cap-js/cds-test": "^0.4.1",
+    "@cap-js/sqlite": "^2",
+    "@sap/cds": "^9.8.4",
+    "jest": "^30.3.0"
   },
   "scripts": {
-    "start": "cds-serve"
+    "start": "cds-serve",
+    "test": "jest"
+  },
+  "jest": {
+    "testEnvironment": "node"
   },
   "private": true
 }

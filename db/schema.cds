@@ -132,8 +132,7 @@ entity Customers : managed {
    * Credit card number with format validation.
    * Must be exactly 16 digits and not start with zero.
    */
-  creditCardNo     : String(16)
-                       @assert.format: '^[1-9]\\d{15}$';
+  creditCardNo     : String(16)     @assert.format: '^[1-9][0-9]{15}$';
 
   /**
    * Customer addresses.
