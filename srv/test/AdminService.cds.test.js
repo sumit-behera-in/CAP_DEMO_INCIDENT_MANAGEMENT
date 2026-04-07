@@ -88,4 +88,27 @@ describe('AdminService Tests', () => {
   })
 
 
+    /**
+   * ---------------------------------------------------------
+   * Test 6: Add Conversation Entry
+   * ---------------------------------------------------------
+   */
+  it('should add conversation to incident', async () => {
+    const incident = await POST('/odata/v4/admin/Incidents', {
+      title: 'Login Issue',
+      customer_ID: 'CUST1'
+    })
+
+    const incidentID = incident.data.ID
+
+    const res = await POST(`/odata/v4/admin/Incidents(${incidentID})/conversation`, {
+      ID: cds.utils.uuid(),
+      message: 'User cannot login'
+    })
+
+    expect(res.status).toBe(201)
+    expect(res.data.message).toBeDefined()
+  })
+
+
 })
