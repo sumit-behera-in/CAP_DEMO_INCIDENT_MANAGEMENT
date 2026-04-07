@@ -36,7 +36,7 @@ describe('AdminService Tests', () => {
    * ---------------------------------------------------------
    */
   it('should compute full name correctly', async () => {
-    const res = await GET("/odata/v4/admin/Customers('CUST1')")
+    var res = await GET("/odata/v4/admin/Customers('CUST1')")
 
     expect(res.status).toBe(200)
     expect(res.data.name).toBe('Sumit Behera')
@@ -48,7 +48,7 @@ describe('AdminService Tests', () => {
    * ---------------------------------------------------------
    */
   it('should reject invalid credit card', async () => {
-    const res = await expect (POST('/odata/v4/admin/Customers', {
+    var res = await expect (POST('/odata/v4/admin/Customers', {
       ID: 'CUST2',
       firstName: 'Invalid',
       creditCardNo: '0123'
@@ -61,23 +61,40 @@ describe('AdminService Tests', () => {
    * ---------------------------------------------------------
    */
   it('should update customer details', async () => {
-    const res = await PATCH("/odata/v4/admin/Customers('CUST1')", {
+    var res = await PATCH("/odata/v4/admin/Customers('CUST1')", {
       firstName: 'Updated'
     })
 
     expect(res.status).toBe(200)
 
-    const updated = await GET("/odata/v4/admin/Customers('CUST1')")
+    var updated = await GET("/odata/v4/admin/Customers('CUST1')")
     expect(updated.data.firstName).toBe('Updated')
   })
+/**
+ * ---------------------------------------------------------
+ * Test 5: Delete Customer
+ * ---------------------------------------------------------
+ */
+it('should delete a customer', async () => {
+  // Delete
+  const res = await DELETE("/odata/v4/admin/Customers('CUST1')")
 
+  expect(res.status).toBe(204) // No Content
+
+  // Verify deletion
+  try {
+    await GET("/odata/v4/admin/Customers('CUST1')")
+  } catch (err) {
+    expect(err.response.status).toBe(404)
+  }
+})
    /**
    * ---------------------------------------------------------
-   * Test 5: Create Incident (Default Values)
+   * Test 6: Create Incident (Default Values)
    * ---------------------------------------------------------
    */
   it('should create incident with defaults', async () => {
-    const res = await POST('/odata/v4/admin/Incidents', {
+    var res = await POST('/odata/v4/admin/Incidents', {
       title: 'Server Down',
       customer_ID: 'CUST1'
     })
@@ -85,30 +102,55 @@ describe('AdminService Tests', () => {
     expect(res.status).toBe(201)
     expect(res.data.status_code).toBe('N')   // default
     expect(res.data.urgency_code).toBe('M') // default
+
+    res = await GET("/odata/v4/admin/Incidents?$filter=customer_ID eq 'CUST1'")
+    expect(res.status).toBe(200)
+    expect(res.data.value.length).toBe(1)
+    expect(res.data.value[0].customer_ID).toBe('CUST1')
+    expect(res.data.value[0].title).toBe('Server Down')
   })
 
 
     /**
    * ---------------------------------------------------------
-   * Test 6: Add Conversation Entry
+   * Test 7: Add Conversation Entry
    * ---------------------------------------------------------
    */
   it('should add conversation to incident', async () => {
-    const incident = await POST('/odata/v4/admin/Incidents', {
+    var incident = await POST('/odata/v4/admin/Incidents', {
       title: 'Login Issue',
       customer_ID: 'CUST1'
     })
 
-    const incidentID = incident.data.ID
+    var incidentID = incident.data.ID
 
-    const res = await POST(`/odata/v4/admin/Incidents(${incidentID})/conversation`, {
+    var res = await POST(`/odata/v4/admin/Incidents(${incidentID})/conversation`, {
       ID: cds.utils.uuid(),
       message: 'User cannot login'
     })
 
     expect(res.status).toBe(201)
     expect(res.data.message).toBeDefined()
+
+    res = await GET("/odata/v4/admin/Incidents?$filter=customer_ID eq 'CUST1' & $expand=conversation")
+    expect(res.status).toBe(200)
+    expect(res.data.value.length).toBe(2)
+    expect(res.data.value[0].customer_ID).toBe('CUST1')
+    expect(res.data.value[0].title).toBe('Login Issue')
+    expect(res.data.value[0].conversation[0].message).toBe('User cannot login')
   })
 
+  
+  /**
+   * ---------------------------------------------------------
+   * Test 7: Expand Association (Customer → Incidents)
+   * ---------------------------------------------------------
+   */
+  // it('should fetch customer with incidents', async () => {
+  //   var res = await GET('/odata/v4/admin/Customers(CUST1)?$expand=incidents')
+
+  //   expect(res.status).toBe(200)
+  //   expect(res.data.incidents).toBeDefined()
+  // })
 
 })
