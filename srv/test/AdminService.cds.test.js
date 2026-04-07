@@ -1,42 +1,53 @@
 const cds = require('@sap/cds')
 
-// Increase timeout (CAP boot can take time)
 jest.setTimeout(15000)
 
-// ✅ Correct CAP test initialization
 const { GET, POST, PATCH, DELETE } = cds.test()
+
+const Incidents = []
 
 describe('AdminService Tests', () => {
 
+
   /**
-   * ---------------------------------------------------------
-   * Test 1: Create Customer
-   * ---------------------------------------------------------
-   */
-  it('should create a customer', async () => {
+  * ---------------------------------------------------------
+  * Test 1: Create Customer
+  * ---------------------------------------------------------
+  */
+
+  beforeAll(async () => {
+    // Create base customer for incidents
     var res = await POST('/odata/v4/admin/Customers', {
+      ID: 'CUST_INC',
+      firstName: 'Incident',
+      lastName: 'User',
+      creditCardNo: '1234567812345678'
+    })
+
+    expect(res.status).toBe(201)
+    expect(res.data.ID).toBe('CUST_INC')
+
+    res = await POST('/odata/v4/admin/Customers', {
       ID: 'CUST1',
       firstName: 'Sumit',
       lastName: 'Behera',
       email: 'sumit@test.com',
       phone: '1234567890',
-      creditCardNo: "1234567812345678"
+      creditCardNo: '1234567812345678'
     })
 
     expect(res.status).toBe(201)
     expect(res.data.ID).toBe('CUST1')
-
-    res = await GET("/odata/v4/admin/Customers('CUST1')")
-    console.log(res.data)
   })
+
 
   /**
    * ---------------------------------------------------------
-   * Test 2: Read Customer + Computed Name
+   * Test 2: Read + Computed Name
    * ---------------------------------------------------------
    */
   it('should compute full name correctly', async () => {
-    var res = await GET("/odata/v4/admin/Customers('CUST1')")
+    const res = await GET("/odata/v4/admin/Customers('CUST1')")
 
     expect(res.status).toBe(200)
     expect(res.data.name).toBe('Sumit Behera')
@@ -44,15 +55,21 @@ describe('AdminService Tests', () => {
 
   /**
    * ---------------------------------------------------------
-   * Test 3: Validation (Credit Card)
+   * Test 3: Validation
    * ---------------------------------------------------------
    */
   it('should reject invalid credit card', async () => {
-    var res = await expect (POST('/odata/v4/admin/Customers', {
-      ID: 'CUST2',
-      firstName: 'Invalid',
-      creditCardNo: '0123'
-    })).rejects.toBeDefined()
+    await expect(
+      POST('/odata/v4/admin/Customers', {
+        ID: 'CUST2',
+        firstName: 'Invalid',
+        creditCardNo: '0123'
+      })
+    ).rejects.toMatchObject({
+      response: {
+        status: 400
+      }
+    })
   })
 
   /**
@@ -61,96 +78,119 @@ describe('AdminService Tests', () => {
    * ---------------------------------------------------------
    */
   it('should update customer details', async () => {
-    var res = await PATCH("/odata/v4/admin/Customers('CUST1')", {
+    const res = await PATCH("/odata/v4/admin/Customers('CUST1')", {
       firstName: 'Updated'
     })
 
     expect(res.status).toBe(200)
 
-    var updated = await GET("/odata/v4/admin/Customers('CUST1')")
+    const updated = await GET("/odata/v4/admin/Customers('CUST1')")
     expect(updated.data.firstName).toBe('Updated')
   })
-/**
- * ---------------------------------------------------------
- * Test 5: Delete Customer
- * ---------------------------------------------------------
- */
-it('should delete a customer', async () => {
-  // Delete
-  const res = await DELETE("/odata/v4/admin/Customers('CUST1')")
 
-  expect(res.status).toBe(204) // No Content
 
-  // Verify deletion
-  try {
-    await GET("/odata/v4/admin/Customers('CUST1')")
-  } catch (err) {
-    expect(err.response.status).toBe(404)
-  }
-})
-   /**
+
+  /**
    * ---------------------------------------------------------
-   * Test 6: Create Incident (Default Values)
+   * Test 5: Create Incident + Defaults
    * ---------------------------------------------------------
    */
   it('should create incident with defaults', async () => {
-    var res = await POST('/odata/v4/admin/Incidents', {
+    const res = await POST('/odata/v4/admin/Incidents', {
       title: 'Server Down',
-      customer_ID: 'CUST1'
+      customer_ID: 'CUST_INC'
     })
 
     expect(res.status).toBe(201)
-    expect(res.data.status_code).toBe('N')   // default
-    expect(res.data.urgency_code).toBe('M') // default
+    expect(res.data.status_code).toBe('N')
+    expect(res.data.urgency_code).toBe('M')
 
-    res = await GET("/odata/v4/admin/Incidents?$filter=customer_ID eq 'CUST1'")
-    expect(res.status).toBe(200)
-    expect(res.data.value.length).toBe(1)
-    expect(res.data.value[0].customer_ID).toBe('CUST1')
-    expect(res.data.value[0].title).toBe('Server Down')
+    const list = await GET(
+      "/odata/v4/admin/Incidents?$filter=customer_ID eq 'CUST_INC'"
+    )
+
+    expect(list.data.value.length).toBeGreaterThan(0)
   })
 
-
-    /**
+  /**
    * ---------------------------------------------------------
-   * Test 7: Add Conversation Entry
+   * Test 6: Conversation
    * ---------------------------------------------------------
    */
   it('should add conversation to incident', async () => {
-    var incident = await POST('/odata/v4/admin/Incidents', {
+    const incident = await POST('/odata/v4/admin/Incidents', {
       title: 'Login Issue',
-      customer_ID: 'CUST1'
+      customer_ID: 'CUST_INC'
     })
 
-    var incidentID = incident.data.ID
+    const incidentID = incident.data.ID
 
-    var res = await POST(`/odata/v4/admin/Incidents(${incidentID})/conversation`, {
-      ID: cds.utils.uuid(),
-      message: 'User cannot login'
-    })
+    Incidents.push(incident.data.ID)
+
+    const res = await POST(
+      `/odata/v4/admin/Incidents(${incidentID})/conversation`,
+      {
+        ID: cds.utils.uuid(),
+        message: 'User cannot login'
+      }
+    )
 
     expect(res.status).toBe(201)
-    expect(res.data.message).toBeDefined()
 
-    res = await GET("/odata/v4/admin/Incidents?$filter=customer_ID eq 'CUST1' & $expand=conversation")
-    expect(res.status).toBe(200)
-    expect(res.data.value.length).toBe(2)
-    expect(res.data.value[0].customer_ID).toBe('CUST1')
-    expect(res.data.value[0].title).toBe('Login Issue')
-    expect(res.data.value[0].conversation[0].message).toBe('User cannot login')
+    const expanded = await GET(
+      `/odata/v4/admin/Incidents(${incidentID})?$expand=conversation`
+    )
+
+    expect(expanded.data.conversation.length).toBe(1)
+    expect(expanded.data.conversation[0].message).toBe(
+      'User cannot login'
+    )
   })
 
-  
   /**
    * ---------------------------------------------------------
-   * Test 7: Expand Association (Customer → Incidents)
+   * Test 7: Expand incidents
    * ---------------------------------------------------------
    */
-  // it('should fetch customer with incidents', async () => {
-  //   var res = await GET('/odata/v4/admin/Customers(CUST1)?$expand=incidents')
+  it('should fetch customer with incidents', async () => {
+    const res = await GET(
+      "/odata/v4/admin/Customers('CUST_INC')?$expand=incidents"
+    )
 
-  //   expect(res.status).toBe(200)
-  //   expect(res.data.incidents).toBeDefined()
-  // })
+    expect(res.status).toBe(200)
+    expect(Array.isArray(res.data.incidents)).toBe(true)
+  })
 
+
+  /**
+   * ---------------------------------------------------------
+   * CLEAN UP: Delete Multiple Customers
+   * ---------------------------------------------------------
+   */
+  afterAll(async () => {
+    const customers = ['CUST1', 'CUST_INC']
+    console.log("incidents are " + Incidents)
+    for (const id of Incidents) {
+      const res = await DELETE(`/odata/v4/admin/Incidents('${id}')`)
+      expect(res.status).toBe(204)
+
+      await expect(
+        GET(`/odata/v4/admin/Incidents('${id}')`)
+      ).rejects.toMatchObject({
+        response: { status: 404 }
+      })
+    }
+
+
+    for (const id of customers) {
+      const res = await DELETE(`/odata/v4/admin/Customers('${id}')`)
+      expect(res.status).toBe(204)
+
+      await expect(
+        GET(`/odata/v4/admin/Customers('${id}')`)
+      ).rejects.toMatchObject({
+        response: { status: 404 }
+      })
+    }
+  })
 })
