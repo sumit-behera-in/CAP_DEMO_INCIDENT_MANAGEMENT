@@ -1,53 +1,63 @@
-name: 🚀 Auto Minor Release
+name: 🚀 Version & Release
 
 on:
   push:
     branches:
-      - main
+      - '**'
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  versioning:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout
-      - name: ⬇️ Checkout code
+      # Checkout
+      - name: ⬇️ Checkout
         uses: actions/checkout@v4
 
-      # 2. Setup Node
-      - name: 🟢 Setup Node.js
+      # Setup Node (only needed for version + test)
+      - name: 🟢 Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # 3. Install deps
-      - name: 📦 Install dependencies
+      # Detect branch
+      - name: 🌿 Detect branch
+        id: branch
+        run: echo "BRANCH=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+
+      # Install deps ONLY for main (for testing)
+      - name: 📦 Install deps
+        if: steps.branch.outputs.BRANCH == 'main'
         run: npm install
 
-      # 4. Run tests
+      # Run tests ONLY for main
       - name: 🧪 Run tests
+        if: steps.branch.outputs.BRANCH == 'main'
         run: npm test
 
-      # 5. Get & bump version manually
-      - name: 🔖 Bump minor version
+      # Version bump logic
+      - name: 🔖 Bump version
         id: version
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          echo "Current version: $VERSION"
 
           MAJOR=$(echo $VERSION | cut -d. -f1)
           MINOR=$(echo $VERSION | cut -d. -f2)
           PATCH=$(echo $VERSION | cut -d. -f3)
 
-          NEW_MINOR=$((MINOR + 1))
-          NEW_VERSION="$MAJOR.$NEW_MINOR.0"
+          if [ "${{ steps.branch.outputs.BRANCH }}" = "main" ]; then
+            # 🔥 MAIN → minor
+            NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+          else
+            # 🔥 FEATURE → patch
+            NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+          fi
 
           echo "New version: $NEW_VERSION"
 
-          # Update package.json
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json'));
@@ -57,27 +67,28 @@ jobs:
 
           echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
 
-      # 6. Commit version change
-      - name: 📝 Commit version bump
+      # Commit version
+      - name: 📝 Commit version
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add package.json
-          git commit -m "chore(release): v${{ steps.version.outputs.VERSION }} [skip ci]"
+          git commit -m "chore(version): v${{ steps.version.outputs.VERSION }} [skip ci]" || echo "No changes"
 
-      # 7. Create tag
-      - name: 🔖 Create tag
+      # Push commit
+      - name: 🚀 Push
+        run: git push origin ${{ steps.branch.outputs.BRANCH }}
+
+      # Tag (ONLY main)
+      - name: 🔖 Tag
+        if: steps.branch.outputs.BRANCH == 'main'
         run: |
           git tag v${{ steps.version.outputs.VERSION }}
-
-      # 8. Push commit + tag
-      - name: 🚀 Push changes
-        run: |
-          git push origin main
           git push origin v${{ steps.version.outputs.VERSION }}
 
-      # 9. Create GitHub Release
-      - name: 📦 Create Release
+      # Release (ONLY main)
+      - name: 📦 Release
+        if: steps.branch.outputs.BRANCH == 'main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
