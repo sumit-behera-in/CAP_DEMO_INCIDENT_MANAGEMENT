@@ -118,10 +118,17 @@
               "controlConfiguration": {
                 "@com.sap.vocabularies.UI.v1.LineItem": {
                   "tableSettings": {
-                    "type": "ResponsiveTable"
+                    "type": "ResponsiveTable",
+                    "disableCopyToClipboard": true,
+                    "enableExport": true,
+                    "enableMassEdit": true,
+                    "personalization": {
+                      "sort": true
+                    }
                   }
                 }
-              }
+              },
+              "initialLoad": "Enabled"
             }
           }
         },
