@@ -36,7 +36,7 @@ jobs:
             echo "CREATED=false" >> $GITHUB_OUTPUT
           else
             echo "db.sqlite not found — creating via cds deploy."
-            npx cds deploy --to sqlite:db.sqlite
+            cds deploy --to sqlite
             echo "CREATED=true" >> $GITHUB_OUTPUT
           fi
 
