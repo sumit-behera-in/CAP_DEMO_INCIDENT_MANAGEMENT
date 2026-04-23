@@ -1,15 +1,15 @@
-name: 🚀 Version & Release
+name: 🚀 Release (Main)
 
 on:
   push:
     branches:
-      - '**'
+      - main
 
 permissions:
   contents: write
 
 jobs:
-  versioning:
+  test-and-release:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,28 +17,39 @@ jobs:
       - name: ⬇️ Checkout
         uses: actions/checkout@v4
 
-      # Setup Node (only needed for version + test)
+      # Setup Node
       - name: 🟢 Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # Detect branch
-      - name: 🌿 Detect branch
-        id: branch
-        run: echo "BRANCH=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
-
-      # Install deps ONLY for main (for testing)
+      # Install deps
       - name: 📦 Install deps
-        if: steps.branch.outputs.BRANCH == 'main'
         run: npm install
 
-      # Run tests ONLY for main
+      # Prepare SQLite DB (reuse if exists, else create)
+      - name: 🗄️ Prepare SQLite DB
+        id: db
+        run: |
+          if [ -f db.sqlite ]; then
+            echo "db.sqlite already exists — reusing."
+            echo "CREATED=false" >> $GITHUB_OUTPUT
+          else
+            echo "db.sqlite not found — creating via cds deploy."
+            npx cds deploy --to sqlite:db.sqlite
+            echo "CREATED=true" >> $GITHUB_OUTPUT
+          fi
+
+      # Run tests
       - name: 🧪 Run tests
-        if: steps.branch.outputs.BRANCH == 'main'
         run: npm test
 
-      # Version bump logic
+      # Cleanup SQLite DB (only if CI created it)
+      - name: 🧹 Cleanup SQLite DB
+        if: steps.db.outputs.CREATED == 'true'
+        run: rm -f db.sqlite
+
+      # Version bump (minor for main)
       - name: 🔖 Bump version
         id: version
         run: |
@@ -46,15 +57,8 @@ jobs:
 
           MAJOR=$(echo $VERSION | cut -d. -f1)
           MINOR=$(echo $VERSION | cut -d. -f2)
-          PATCH=$(echo $VERSION | cut -d. -f3)
 
-          if [ "${{ steps.branch.outputs.BRANCH }}" = "main" ]; then
-            # 🔥 MAIN → minor
-            NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
-          else
-            # 🔥 FEATURE → patch
-            NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
-          fi
+          NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
 
           echo "New version: $NEW_VERSION"
 
@@ -77,18 +81,16 @@ jobs:
 
       # Push commit
       - name: 🚀 Push
-        run: git push origin ${{ steps.branch.outputs.BRANCH }}
+        run: git push origin main
 
-      # Tag (ONLY main)
+      # Tag
       - name: 🔖 Tag
-        if: steps.branch.outputs.BRANCH == 'main'
         run: |
           git tag v${{ steps.version.outputs.VERSION }}
           git push origin v${{ steps.version.outputs.VERSION }}
 
-      # Release (ONLY main)
+      # Release
       - name: 📦 Release
-        if: steps.branch.outputs.BRANCH == 'main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
