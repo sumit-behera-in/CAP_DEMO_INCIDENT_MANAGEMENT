@@ -1,23 +1,37 @@
 {
   "name": "demo_incident_manager",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "description": "A simple CAP project.",
   "dependencies": {
     "express": "^4",
-    "sqlite3": "^6.0.1"
+    "sqlite3": "^6.0.1",
+    "@sap/cds": "^9.8.4"
   },
   "devDependencies": {
     "@cap-js/cds-test": "^0.4.1",
     "@cap-js/sqlite": "^2",
     "@sap/cds": "^9.8.4",
-    "jest": "^30.3.0"
+    "jest": "^30.3.0",
+    "cds-plugin-ui5": "^0.13.0"
   },
   "scripts": {
     "start": "cds-serve",
-    "test": "jest"
+    "test": "jest",
+    "watch-processorservice": "cds watch --open ns.processorservice/index.html?sap-ui-xx-viewCache=false --livereload false"
   },
   "jest": {
     "testEnvironment": "node"
   },
-  "private": true
+  "cds": {
+    "requires": {
+      "db": "sqlite"
+    }
+  },
+  "private": true,
+  "workspaces": [
+    "app/*"
+  ],
+  "sapux": [
+    "app/processorservice"
+  ]
 }
